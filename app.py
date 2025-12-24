@@ -33,64 +33,42 @@ st.markdown("""
         border-left: 5px solid #ee4d2d;
         color: #1a1a1a;
     }
-    .api-counter {
-        background-color: #1e1e1e;
-        color: #00ff00;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-family: monospace;
-        font-size: 12px;
-        float: right;
-    }
     </style>
     """, unsafe_allow_html=True)
 
 # 2. Configuração da API
 API_KEY = "AIzaSyCiJyxLVYVgI7EiTuQmkQGTi1nWiQn9g_8"
 genai.configure(api_key=API_KEY)
+MODELOS = ['gemini-3-flash', 'gemini-2.5-flash-lite']
 
-# 3. Estados de Sessão (Memória)
+# 3. Estados de Sessão
 if 'texto_copiar' not in st.session_state: st.session_state.texto_copiar = ""
 if 'relatorio_expert' not in st.session_state: st.session_state.relatorio_expert = ""
 if 'score' not in st.session_state: st.session_state.score = "0"
 if 'capa_frame' not in st.session_state: st.session_state.capa_frame = None
-if 'api_usage' not in st.session_state: st.session_state.api_usage = 0
 
-def limpar_ativos_expert(texto):
-    """Extrai apenas o conteúdo útil, removendo rótulos e vírgulas"""
+def limpar_ativos(texto):
+    """Filtro de Elite: Título + 4 Tags sem vírgulas em 150 caracteres"""
     try:
-        # Tenta capturar o título e as tags ignorando os rótulos da IA
-        partes = re.split(r'TITULO_VENDA:|TAGS:', texto)
-        if len(partes) >= 3:
-            titulo = partes[1].split('\n')[0].strip()
-            tags_brutas = partes[2].split('\n')[0].strip()
-        else:
-            # Fallback caso a regex falhe
-            titulo = texto.split('\n')[0]
-            tags_brutas = ""
-
-        # Limpeza de caracteres de lista e rótulos residuais
-        titulo = re.sub(r'(?i)TITULO_VENDA:|TITULO:|[#*0-9.-]', '', titulo).strip()
-        
-        # Formatação de Hashtags (sem vírgulas)
-        tags_limpas = tags_brutas.replace(',', ' ').replace('.', ' ').replace('TAGS:', '')
+        titulo = re.search(r'TITULO_VENDA:(.*?)(?=TAGS|$)', texto, re.S).group(1).strip()
+        tags_brutas = re.search(r'TAGS:(.*?)(?=---|$)', texto, re.S).group(1).strip()
+        titulo = re.sub(r'^[\s\d.*-]*', '', titulo)
+        tags_limpas = tags_brutas.replace(',', ' ').replace('.', ' ')
         lista_tags = []
         for word in tags_limpas.split():
             word = word.strip()
             if word:
                 if not word.startswith('#'): word = f"#{word}"
                 lista_tags.append(word)
-        
         resultado = f"{titulo} {' '.join(lista_tags[:4])}"
-        return resultado[:150].strip()
+        return resultado[:150]
     except:
-        return "Erro ao formatar. Tente recriar o título."
+        return "Erro na formatação. Tente novamente."
 
-# 4. Interface
-st.markdown(f'<div class="api-counter">Uso da Sessão: {st.session_state.api_usage} chamadas | Modelo: Gemini-3-Flash</div>', unsafe_allow_html=True)
+# 4. Interface Principal
 st.title("🧡 Shopee Expert: Auditoria de Vendas")
 
-uploaded_file = st.file_uploader("📂 Suba o vídeo...", type=["mp4", "mov", "avi"])
+uploaded_file = st.file_uploader("📂 Suba o vídeo para análise do Especialista...", type=["mp4", "mov", "avi"])
 
 if uploaded_file is not None:
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
@@ -98,8 +76,7 @@ if uploaded_file is not None:
     file_path = tfile.name
     
     if st.button("🚀 Iniciar Auditoria do Especialista"):
-        st.session_state.api_usage += 1
-        with st.spinner("🕵️ Consultando Especialista..."):
+        with st.spinner("🕵️ Consultando Especialista em Conversão Shopee..."):
             try:
                 video_file = genai.upload_file(path=file_path)
                 while video_file.state.name == "PROCESSING":
@@ -107,27 +84,40 @@ if uploaded_file is not None:
                     video_file = genai.get_file(video_file.name)
                 
                 prompt = """
-                Atue como Especialista Shopee. Analise o vídeo e retorne:
-                [SCORE]: 0-100
+                Atue como o maior Especialista em Algoritmo e Vendas do Shopee Vídeos.
+                Analise o vídeo de forma técnica e retorne:
+
+                [SCORE]: (Nota de 0 a 100 de potencial de venda)
+
                 # 🧠 RELATÓRIO DO ESPECIALISTA
-                - (Análise técnica de gancho, segurança e conversão)
+                - **GANCHO INICIAL**: (Analise se o produto prende a atenção nos primeiros 2s).
+                - **ESTÉTICA E ILUMINAÇÃO**: (O vídeo parece profissional ou amador demais? Isso afeta a confiança).
+                - **POLÍTICA E RISCO**: (Há risco de shadowban por conteúdo estático, marcas d'água ou reupload?).
+                - **GATILHOS DE CONVERSÃO**: (Quais gatilhos o vídeo usa: Curiosidade, Desejo, Urgência ou Prova Social?).
+                - **VEREDITO FINAL**: (O que o vendedor deve fazer para explodir em vendas).
+
                 --- ATIVOS ---
-                TITULO_VENDA: (Texto de venda magnético)
-                TAGS: (4 hashtags com # sem vírgulas)
+                TITULO_VENDA: (Título magnético curto)
+                TAGS: (4 hashtags estratégicas sem vírgulas)
                 --- FIM ---
+                REGRA: Título + Tags não podem passar de 150 caracteres.
                 CAPA: X (segundo sugerido)
                 """
 
-                model = genai.GenerativeModel('gemini-3-flash')
-                response = model.generate_content([video_file, prompt])
+                response = None
+                for m in MODELOS:
+                    try:
+                        model = genai.GenerativeModel(m)
+                        response = model.generate_content([video_file, prompt])
+                        break
+                    except: continue
 
                 if response:
                     res_text = response.text
                     st.session_state.score = re.search(r'\[SCORE\]:\s*(\d+)', res_text).group(1) if "[" in res_text else "50"
                     st.session_state.relatorio_expert = res_text.split('# 🧠 RELATÓRIO DO ESPECIALISTA')[-1].split('--- ATIVOS ---')[0].strip()
-                    st.session_state.texto_copiar = limpar_ativos_expert(res_text)
+                    st.session_state.texto_copiar = limpar_ativos(res_text)
                     
-                    # Processamento de Capa
                     match_capa = re.search(r'CAPA:\s*(\d+)', res_text)
                     segundo = int(match_capa.group(1)) if match_capa else 1
                     cap = cv2.VideoCapture(file_path)
@@ -138,31 +128,38 @@ if uploaded_file is not None:
 
                 genai.delete_file(video_file.name)
             except Exception as e:
-                st.error(f"Erro na API: {e}")
+                st.error(f"Erro: {e}")
             finally:
                 if os.path.exists(file_path): os.remove(file_path)
 
+    # 5. Dashboard de Resultados
     if st.session_state.texto_copiar:
         st.markdown(f'<div class="status-box">POTENCIAL DE CONVERSÃO: {st.session_state.score}/100</div>', unsafe_allow_html=True)
         
         col1, col2 = st.columns([1.3, 0.7])
+        
         with col1:
             st.subheader("👨‍🏫 Consultoria do Especialista")
-            st.markdown(f'<div class="expert-report">{st.session_state.relatorio_expert.replace("-", "<br>•")}</div>', unsafe_allow_html=True)
+            # Usando uma caixa personalizada para o relatório
+            st.markdown(f"""
+                <div class="expert-report">
+                    {st.session_state.relatorio_expert.replace('-', '<br>•').replace('\n', '<br>')}
+                </div>
+            """, unsafe_allow_html=True)
 
             st.divider()
-            st.subheader("📋 Título + 4 Tags (Máx 150 chars)")
-            st.text_area("Copiar:", st.session_state.texto_copiar, height=80, label_visibility="collapsed")
-            st.caption(f"Contagem: {len(st.session_state.texto_copiar)}/150")
+            st.subheader("📋 Título + 4 Tags (Pronto para Colar)")
+            st.text_area("Cópia Direta:", st.session_state.texto_copiar, height=80, label_visibility="collapsed")
+            st.caption(f"Contagem Rígida: {len(st.session_state.texto_copiar)}/150 caracteres.")
             
             if st.button("🔄 Recriar Título e Tags"):
-                st.session_state.api_usage += 1
                 model_lite = genai.GenerativeModel('gemini-2.5-flash-lite')
-                resp_nova = model_lite.generate_content(f"Gere um NOVO TITULO e 4 TAGS (# sem vírgula) para este produto. Limite 150 chars totais. Use o formato: TITULO_VENDA: ... TAGS: ...")
-                st.session_state.texto_copiar = limpar_ativos_expert(resp_nova.text)
+                resp_nova = model_lite.generate_content(f"Gere um NOVO TITULO e 4 TAGS (# sem vírgula) para este produto com base na análise: {st.session_state.relatorio_expert}. Máximo 150 chars.")
+                st.session_state.texto_copiar = limpar_ativos(resp_nova.text)
                 st.rerun()
 
         with col2:
             if st.session_state.capa_frame is not None:
-                st.subheader("🖼️ Capa")
+                st.subheader("🖼️ Capa Estratégica")
                 st.image(st.session_state.capa_frame, use_container_width=True)
+                st.info("💡 Dica: No Shopee Vídeos, capas que mostram o produto sendo tirado da caixa (unboxing) tendem a converter 25% mais.")
