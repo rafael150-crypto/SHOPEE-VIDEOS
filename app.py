@@ -9,7 +9,6 @@ import time
 # Configuração da Página
 st.set_page_config(page_title="BrendaBot Shopee Expert", page_icon="🧡", layout="wide")
 
-# CSS para Estilização
 st.markdown("""
     <style>
     .status-box {
@@ -23,7 +22,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🧡 Shopee Expert: Validação & Ativos")
+st.title("🧡 Shopee Expert: Foco em Conversão")
 
 # Configurar API
 API_KEY = "AIzaSyCiJyxLVYVgI7EiTuQmkQGTi1nWiQn9g_8"
@@ -45,23 +44,21 @@ if uploaded_file is not None:
                 video_file = genai.get_file(video_file.name)
             
             prompt = """
-            Atue como Especialista em Shopee Vídeos. 
-            Analise o vídeo e retorne:
+            Atue como Especialista em Shopee Vídeos. Analise o vídeo e retorne:
 
             [SCORE]: Nota 0-100.
 
             # CONSULTORIA TÉCNICA
             - **SEGURANÇA**: (Analise risco de banimento).
-            - **CONVERSÃO**: (Gatilhos de venda).
+            - **CONVERSÃO**: (Gatilhos de venda usados).
             - **DICA**: (Melhoria rápida).
 
             --- ATIVOS ---
-            LEGENDA: (Texto de venda)
-            TAGS: (3 hashtags)
-            CTA: (Pergunta curta)
+            TITULO_VENDA: (Texto de venda impactante)
+            TAGS: (4 hashtags estratégicas)
             --- FIM ---
             
-            IMPORTANTE: A soma de LEGENDA + TAGS deve ter NO MÁXIMO 145 caracteres.
+            REGRA: O bloco (TITULO_VENDA + TAGS) deve ter no máximo 150 caracteres totais.
 
             CAPA_LIMPA: X
             """
@@ -84,33 +81,32 @@ if uploaded_file is not None:
                 col1, col2 = st.columns([1.3, 0.7])
                 
                 with col1:
-                    st.subheader("👨‍🏫 Consultoria Técnica")
+                    st.subheader("👨‍🏫 Consultoria do Especialista")
                     relatorio = res_text.split('--- ATIVOS ---')[0].replace(f"[SCORE]: {score}", "").strip()
                     st.info(relatorio)
 
                     st.divider()
-                    st.subheader("📋 Clique para Copiar")
+                    st.subheader("📋 Clique para Copiar (Título + 4 Tags)")
                     
                     try:
-                        leg = re.search(r'LEGENDA:(.*?)(?=TAGS|$)', res_text, re.S).group(1).strip()
-                        tags = re.search(r'TAGS:(.*?)(?=CTA|$)', res_text, re.S).group(1).strip()
-                        cta = re.search(r'CTA:(.*?)(?=---|$)', res_text, re.S).group(1).strip()
+                        titulo = re.search(r'TITULO_VENDA:(.*?)(?=TAGS|$)', res_text, re.S).group(1).strip()
+                        tags = re.search(r'TAGS:(.*?)(?=---|$)', res_text, re.S).group(1).strip()
                         
-                        leg = re.sub(r'^[\s\d.*-]*', '', leg)
+                        # Limpeza profunda de prefixos
+                        titulo = re.sub(r'^[\s\d.*-]*', '', titulo)
                         tags = re.sub(r'^[\s\d.*-]*', '', tags)
-                        cta = re.sub(r'^[\s\d.*-]*', '', cta)
                         
-                        # Bloco final otimizado para os 150 caracteres
-                        texto_final = f"{leg} {tags}\n{cta}"
+                        # Bloco final: Título e Tags na mesma linha sem nada extra
+                        texto_final = f"{titulo} {tags}"
                     except:
-                        texto_final = "Erro na geração do texto."
+                        texto_final = "Erro ao extrair texto."
 
-                    # O componente st.code já vem com um botão de copiar por padrão no canto superior direito
+                    # Botão de copiar nativo (st.code)
                     st.code(texto_final, language=None)
                     
-                    # Verificador de caracteres para sua segurança
-                    primeira_linha = texto_final.split('\n')[0]
-                    st.caption(f"Tamanho da legenda + tags: {len(primeira_linha)}/150")
+                    st.caption(f"Total: {len(texto_final)}/150 caracteres")
+                    if len(texto_final) > 150:
+                        st.error("⚠️ O texto excedeu 150 caracteres.")
 
                 with col2:
                     match_capa = re.search(r'CAPA_LIMPA:\s*(\d+)', res_text)
