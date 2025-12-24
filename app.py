@@ -108,6 +108,3 @@ if uploaded_file is not None:
         with col2:
             st.subheader("👨‍🏫 Por que este título?")
             st.info(st.session_state.relatorio_expert if st.session_state.relatorio_expert else "Análise concluída.")
-                st.subheader("🖼️ Capa")
-                st.image(st.session_state.capa_frame, use_container_width=True)
-                st.caption(f"Caracteres: {len(st.session_state.texto_copiar)}/150")
