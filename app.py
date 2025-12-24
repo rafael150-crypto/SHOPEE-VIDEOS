@@ -5,94 +5,126 @@ import os
 import re
 import tempfile
 import time
-from PIL import Image
 
 # Configuração da Página
-st.set_page_config(page_title="BrendaBot Shopee + Banana Pro", page_icon="🍌", layout="wide")
+st.set_page_config(page_title="BrendaBot Shopee Pro", page_icon="🧡", layout="wide")
 
-st.title("🍌 BrendaBot Shopee Seller - Banana Pro Edition")
-st.caption("Análise de Vídeo + Geração de Capa Profissional com IA")
+st.markdown("""
+    <style>
+    .copy-area {
+        background-color: #fffaf9;
+        border: 2px dashed #ee4d2d;
+        padding: 15px;
+        border-radius: 10px;
+        margin-top: 10px;
+    }
+    .status-box {
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        background-color: #fff5f2;
+        color: #ee4d2d;
+        border: 1px solid #ee4d2d;
+        margin-bottom: 20px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Configurar API
+st.title("🧡 BrendaBot Shopee - Cópia Direta")
+
+# Configurar API (Usando fallback de modelos para garantir cota)
 API_KEY = "AIzaSyCiJyxLVYVgI7EiTuQmkQGTi1nWiQn9g_8"
 genai.configure(api_key=API_KEY)
+MODELOS = ['gemini-3-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash']
 
-# Lista de modelos por prioridade
-MODELOS_PRIORIDADE = ['gemini-3-flash', 'gemini-2.5-flash-lite']
-
-uploaded_file = st.file_uploader("📂 Arraste o vídeo do produto aqui...", type=["mp4", "mov", "avi"])
+uploaded_file = st.file_uploader("📂 Suba o vídeo do produto...", type=["mp4", "mov", "avi"])
 
 if uploaded_file is not None:
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     tfile.write(uploaded_file.read())
     file_path = tfile.name
     
-    with st.spinner("🕵️ Analisando produto e criando capa profissional..."):
+    with st.spinner("🕵️ Analisando e limpando ativos..."):
         try:
-            # 1. Análise do Vídeo
             video_file = genai.upload_file(path=file_path)
             while video_file.state.name == "PROCESSING":
                 time.sleep(2)
                 video_file = genai.get_file(video_file.name)
             
-            prompt_video = """
-            Analise este vídeo de produto e retorne:
-            1. [DESCRICAO_VISUAL]: Descreva o produto detalhadamente (cor, material, forma) para gerar uma imagem.
-            2. [PONTUACAO]: Nota de venda.
-            3. LEGENDA: Texto limpo.
-            4. TAGS: 3 hashtags.
+            prompt = """
+            Atue como especialista em Shopee Vídeos. Analise o vídeo e retorne:
+
+            [SCORE]: Nota 0-100.
+            [ANALISE]: Resumo da viabilidade e riscos.
+
+            --- TEXTO PARA COPIAR ---
+            LEGENDA: (Apenas o texto da legenda, sem o nome 'Legenda', máximo 130 caracteres)
+            TAGS: (Apenas as hashtags, sem o nome 'Tags')
+            CTA: (Apenas a pergunta de engajamento, sem o nome 'CTA')
+            --- FIM ---
+
+            CAPA_LIMPA: X (segundo sugerido com o fundo mais limpo possível)
             """
-            
-            # Fallback de modelos
+
             response = None
-            for m in MODELOS_PRIORIDADE:
+            for m in MODELOS:
                 try:
                     model = genai.GenerativeModel(m)
-                    response = model.generate_content([video_file, prompt_video])
+                    response = model.generate_content([video_file, prompt])
                     break
                 except: continue
 
             if response:
-                texto_ia = response.text
+                res_text = response.text
                 
-                # Extrair descrição para a IA de imagem
-                desc_match = re.search(r'\[DESCRICAO_VISUAL\]:(.*?)(?=\[PONTUACAO\]|LEGENDA|$)', texto_ia, re.S)
-                descricao_produto = desc_match.group(1).strip() if desc_match else "Produto de ecommerce"
+                # Extração de dados
+                score = re.search(r'\[SCORE\]:\s*(\d+)', res_text)
+                score = score.group(1) if score else "50"
                 
-                # 2. Geração da Capa com "Banana Pro" (Nano Banana)
-                # Criamos um prompt focado em fundo limpo
-                prompt_imagem = f"A professional e-commerce product photography of {descricao_produto}, centered, clean white background, high resolution, studio lighting, 4k."
-                
-                # Chamada para geração de imagem
-                image_response = genai.GenerativeModel('imagen-3').generate_content(prompt_imagem)
-                
-                # Exibição
-                col1, col2 = st.columns([1, 1])
+                st.markdown(f'<div class="status-box"><h2>Potencial de Venda: {score}/100</h2></div>', unsafe_allow_html=True)
+
+                col1, col2 = st.columns([1.2, 0.8])
                 
                 with col1:
-                    st.subheader("📝 Ativos para Postagem")
-                    legenda = re.search(r'LEGENDA:(.*?)(?=TAGS|$)', texto_ia, re.S).group(1).strip()
-                    tags = re.search(r'TAGS:(.*?)$', texto_ia, re.S).group(1).strip()
+                    st.subheader("📋 Auditoria do Vídeo")
+                    analise = re.search(r'\[ANALISE\]:(.*?)(?=---)', res_text, re.S)
+                    if analise: st.info(analise.group(1).strip())
+
+                    st.subheader("🛒 Conteúdo Pronto (Copiar e Colar)")
                     
-                    # Cópia Direta e Limpa
-                    texto_final = f"{legenda}\n\n{tags}"
-                    st.text_area("Copiar e Colar:", texto_final, height=150)
-                    st.caption(f"Caracteres: {len(texto_final)}/150")
+                    # Captura os blocos e limpa qualquer resíduo de numeração ou título
+                    try:
+                        leg = re.search(r'LEGENDA:(.*?)(?=TAGS|$)', res_text, re.S).group(1).strip()
+                        tags = re.search(r'TAGS:(.*?)(?=CTA|$)', res_text, re.S).group(1).strip()
+                        cta = re.search(r'CTA:(.*?)(?=---|$)', res_text, re.S).group(1).strip()
+                        
+                        # Remove prefixos como "1. ", "- ", "* "
+                        leg = re.sub(r'^[\s\d.*-]*', '', leg)
+                        tags = re.sub(r'^[\s\d.*-]*', '', tags)
+                        cta = re.sub(r'^[\s\d.*-]*', '', cta)
+                        
+                        texto_final = f"{leg}\n\n{tags}\n\n{cta}"
+                    except:
+                        texto_final = "Erro ao formatar. Tente novamente."
+
+                    st.markdown('<div class="copy-area">', unsafe_allow_html=True)
+                    st.text_area("Texto Limpo:", texto_final, height=200, label_visibility="collapsed")
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.caption(f"Caracteres: {len(leg) + len(tags)} (Limite Shopee: 150)")
 
                 with col2:
-                    st.subheader("🖼️ Capa Gerada (Banana Pro)")
-                    try:
-                        # Mostra a imagem gerada pela IA
-                        st.image(image_response.candidates[0].content.parts[0].inline_data.data, use_container_width=True)
-                        st.success("Capa criada com fundo limpo profissional!")
-                    except:
-                        st.warning("Não foi possível gerar a imagem, mostrando frame do vídeo.")
-                        # Fallback: mostra frame do vídeo se a geração falhar
-                        cap = cv2.VideoCapture(file_path)
-                        cap.set(cv2.CAP_PROP_POS_MSEC, 2000)
-                        ret, frame = cap.read()
-                        if ret: st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
-                        cap.release()
+                    match_capa = re.search(r'CAPA_LIMPA:\s*(\d+)', res_text)
+                    segundo = int(match_capa.group(1)) if match_capa else 1
+                    
+                    cap = cv2.VideoCapture(file_path)
+                    cap.set(cv2.CAP_PROP_POS_MSEC, segundo * 1000)
+                    ret, frame = cap.read()
+                    if ret:
+                        st.subheader("🖼️ Frame Sugerido (Capa)")
+                        st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
+                        _, buffer = cv2.imencode('.jpg', frame)
+                        st.download_button("📥 Baixar Capa", buffer.tobytes(), "capa.jpg", "image/jpeg")
+                    cap.release()
 
             genai.delete_file(video_file.name)
         except Exception as e:
