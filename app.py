@@ -26,7 +26,7 @@ st.markdown("""
 st.title("🧡 Shopee Expert: Validação & Ativos")
 
 # Configurar API
-API_KEY = "AIzaSyDmqVD3ZnaPKumWVrlJUpvWgbZNxNT9unY"
+API_KEY = "AIzaSyCiJyxLVYVgI7EiTuQmkQGTi1nWiQn9g_8"
 genai.configure(api_key=API_KEY)
 MODELOS = ['gemini-3-flash', 'gemini-2.5-flash-lite']
 
