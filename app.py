@@ -37,7 +37,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2. Configuração da API - USE NOMES ESTÁVEIS AQUI
-API_KEY = "AIzaSyCiJyxLVYVgI7EiTuQmkQGTi1nWiQn9g_8"
+API_KEY = "AIzaSyAXMHYg7kRRA74fwOXxH9mP3hqF4H2h2sg"
 genai.configure(api_key=API_KEY)
 # Alterado para os nomes que o Google reconhece oficialmente agora
 MODELOS = ['gemini-1.5-flash', 'gemini-1.5-pro']
