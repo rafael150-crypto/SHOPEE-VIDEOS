@@ -7,7 +7,7 @@ import tempfile
 import time
 
 # 1. Configuração de Interface
-st.set_page_config(page_title="BrendaBot Shopee Expert", page_icon="🧡", layout="wide")
+st.set_page_config(page_title="Shopee Expert", page_icon="🧡", layout="wide")
 
 st.markdown("""
     <style>
@@ -37,7 +37,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2. Configuração da API - USE NOMES ESTÁVEIS AQUI
-API_KEY = "AIzaSyCDpC1EqK1MFXkFW84rdnQPrcWsbB16k4A"
+API_KEY = "AIzaSyBPJayL5rgY25x-zkBaZ35GDNop-8VNbt0"
 genai.configure(api_key=API_KEY)
 # Alterado para os nomes que o Google reconhece oficialmente agora
 MODELOS = ['gemini-1.5-flash', 'gemini-1.5-pro']
